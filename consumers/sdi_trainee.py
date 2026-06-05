@@ -4,12 +4,12 @@ from pika import BlockingConnection, ConnectionParameters, PlainCredentials
 from fastapi.encoders import jsonable_encoder
 from pika.spec import Basic, BasicProperties
 from pika.channel import Channel
-from ulid import ulid
 from datetime import datetime
 
 from core.db import SDI_DB
 from models.profile import profile
 from models.flowmaster import flow
+from ulid import ULID
 
 import traceback
 
@@ -119,14 +119,45 @@ class SDI:
 """            
                     message_type = "text",
                 else:
-                    ...
+                    if payload == "trainee":
+                        exist = db.query(flow).filter(flow.number==recipient_number).first()
+                        if exist:
+                            message_type = "interactive"
+                            message_body = "Please complete your trainee profile.",
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": "abcd_1234_en",
+                                    "flow_id": "2083093795942774",
+                                    "flow_button": "Open Form",
+                                    "flow_payload": {
+                                        "screen": "otp_screen",
+                                        "data": {
+                                            "otp_verified":False
+                                        }
+                                    }
+                                }
+                            ]
+                    # if trainee is chosen
+                    # query from profile table
+                    else:
+                        message_type = "interactive"
+                        message_body = "Please complete your trainee profile.",
+                        interactive_payload = [
+                            {
+                                "type": "flow",
+                                "flow_token": "abcd_1234_en",
+                                "flow_id": "1643051456924315",
+                                "flow_button": "Open Form"
+                            }
+                        ]
             else:
                 
                 if isinstance(message,str) and payload is None:
                     message_body ="""
 Welcome to portal
 """
-                    message_type = "list"
+                    message_type = "interactive"
                     message_header ="Choose service"                   
                     interactive_payload = [
                         {
@@ -157,7 +188,11 @@ Welcome to portal
                         }
                     ]
 
-
+                    db.add(flow(**{
+                        "id":ULID().hex,
+                        "number":recipient_number,
+                        "status":"START"
+                    }))
 
             res = send_message(
                 message_type,
