@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Body, Request, status
-from ulid import ULID
 from typing import Any
 from pika import BlockingConnection, ConnectionParameters, BasicProperties,PlainCredentials
 import traceback
@@ -13,9 +12,8 @@ webhook_router = APIRouter()
 
 
 
-@webhook_router.post('/bls')
+@webhook_router.post('/sdi')
 async def poc_webhook(req: Request, request: dict = Body()):
-    request_unique_id = ULID().hex
 
     connection = None
     channel = None
@@ -35,8 +33,8 @@ async def poc_webhook(req: Request, request: dict = Body()):
             if 'statuses' in request['entry'][0]['changes'][0]['value'] or 'event' in request['entry'][0]['changes'][0]['value']:
                 ...
             else:
-                channel.queue_declare('bls',durable=True)
-                channel.basic_publish(exchange='',routing_key='bls',body=data)
+                channel.queue_declare('sdi',durable=True)
+                channel.basic_publish(exchange='',routing_key='sdi',body=data)
                     
 
             

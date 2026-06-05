@@ -30,4 +30,4 @@ secure_assets_route = APIRouter(tags=['secure_route'])
 app.include_router(secure_assets_route, prefix='/secure_assets')
 
 if __name__ == '__main__':
-    run(app=app, host='0.0.0.0', port=8000, ssl_keyfile='server.key', ssl_certfile='server.crt' )
+    run(app=app, host='0.0.0.0', port=11443, ssl_keyfile='server.key', ssl_certfile='server.crt' )

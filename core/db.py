@@ -1,5 +1,6 @@
 
 
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -9,10 +10,10 @@ args = {
     "port": 5432,
     "user": "devuser",
     "password": "Sentimentanalysis@123",
-    "dbname": "bls"
+    "dbname": "sdi"
 }
 
 
 
 _postgres_engine = create_engine('postgresql+psycopg2://', connect_args=args, pool_size=50)
-BLS_DB = sessionmaker(bind=_postgres_engine)
+SDI_DB = sessionmaker(bind=_postgres_engine)

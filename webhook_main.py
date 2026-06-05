@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 from webhook_server.api import api_router
 
 
-app = FastAPI(docs_url=None)
+app = FastAPI()
 
 
 
@@ -28,5 +28,4 @@ app.include_router(api_router)
 
 
 if __name__ == "__main__":
-    uvicorn.run(app="__main__:app", host='0.0.0.0', port=443,
-                ssl_keyfile='server.key', ssl_certfile='server.crt', reload=True)
+    uvicorn.run(app="__main__:app", host='0.0.0.0', port=8000,reload=True)

@@ -8,5 +8,5 @@ class ConsumerQueueDetailsModel:
 
 
 QUEUE_CONSUMER_DETAILS: list[ConsumerQueueDetailsModel] = [
-    ConsumerQueueDetailsModel(name= "bls",min_process_summon= 10,threshold_number= 5)
+    ConsumerQueueDetailsModel(name= "sdi",min_process_summon= 10,threshold_number= 5)
 ]
