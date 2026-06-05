@@ -105,22 +105,23 @@ class SDI:
             user_state_instance = (
                 db.query(flow)
                 .filter(flow.number == recipient_number)
-                .filter(flow.status.in_(["START", "ONGOING","COMPLETE"]))
+                .filter(flow.status.in_(["START", "ONGOING"]))
             )  # this is the main table that maintain state step and everything
             user_state_data = user_state_instance.first()  
             
             if user_state_data:
                 if isinstance(message,str) and "abort" in message.lower():
-                    user_state_instance.update({"status":"COMPLETE"})
+                    user_state_instance.update({"status":"ABORTED"})
                     message_body ="""
 ✨ Your session has been completed successfully!
 
 😊 You can start a new session anytime and continue availing our services seamlessly.                        
 """            
-                    message_type = "text",
+                    message_type = "text"
                 else:
                     if payload == "trainee":
-                        exist = db.query(flow).filter(flow.number==recipient_number).first()
+                        #Checks in the profile database
+                        exist = db.query(profile).filter(profile.number==recipient_number).first()#If present
                         if exist:
                             message_type = "interactive"
                             message_body = "Please complete your trainee profile.",
@@ -138,19 +139,22 @@ class SDI:
                                     }
                                 }
                             ]
+                            user_state_instance.update({"status":"COMPLETE"})
                     # if trainee is chosen
                     # query from profile table
-                    else:
-                        message_type = "interactive"
-                        message_body = "Please complete your trainee profile.",
-                        interactive_payload = [
-                            {
-                                "type": "flow",
-                                "flow_token": "abcd_1234_en",
-                                "flow_id": "1643051456924315",
-                                "flow_button": "Open Form"
-                            }
-                        ]
+                        else:
+                            message_type = "interactive"
+                            message_body = "Please fill your trainee profile."
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": "abcd_1234_en",
+                                    "flow_id": "1643051456924315",
+                                    "flow_button": "Open Form",
+                                    "flow_payload":"navigate"
+                                }
+                            ]
+                            user_state_instance.update({"status":"ONGOING"})
             else:
                 
                 if isinstance(message,str) and payload is None:
