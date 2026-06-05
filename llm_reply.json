@@ -1,0 +1,14 @@
+{
+    "reply": "Hello! I'm ARIA, your official AI assistant from BLS International. I'm here to help you with various visa-related services and support. \n\nHere are some of the services I can assist you with:\n• Courier & Passport Delivery\n• Photo Copy (Black & White)\n• SMS Application Updates & Tracking\n• Call Back Service (STS)\n• Premium Lounge\n• Printing Services\n• Form Filling Assistance\n• Flexi Hours – Passport Collection\n• Doorstep Services\n• Prime Time Appointment\n• Photo Booth\n• Travel Insurance\n• SIM Card Services\n• Logistic Charges Support (Nepal & Colombo)\n• Courier Assurance\n• Doctor on Call Assistance\n• BLS Service Charges Information\n\nHow may I assist you today?",
+    "service": "general_query",
+    "intent": "greeting",
+    "conversation_status": "ongoing",
+    "extracted_master_data": {
+        "applicant_name": null,
+        "visa_type": null,
+        "vac_location": null,
+        "appointment_no": null,
+        "bls_no": null,
+        "gwf_no": null
+    }
+}
