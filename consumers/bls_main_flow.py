@@ -796,6 +796,7 @@ Our mission is to make your travel and documentation journey smooth, secure, and
 Ready to get started with BLS services? 👇                    
 """
 
+            db.commit()
             res = send_message(
                 message_type,
                 message_body,
@@ -813,10 +814,10 @@ Ready to get started with BLS services? 👇
             return
 
         except:
+            db.rollback()
             traceback.print_exc()
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return ()
 
         finally:
-            db.commit()
             db.close()

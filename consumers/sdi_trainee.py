@@ -9,7 +9,11 @@ from datetime import datetime
 from core.db import SDI_DB
 from models.profile import profile
 from models.flowmaster import flow
+from models.company import Company
+from models.jobs_data import Jobs
 from ulid import ULID
+from sqlalchemy import func, or_
+import uuid
 
 import traceback
 
@@ -124,7 +128,7 @@ class SDI:
                         exist = db.query(profile).filter(profile.number==recipient_number).first()#If present
                         if exist:
                             message_type = "interactive"
-                            message_body = "Please complete your trainee profile.",
+                            message_body = "Please complete your trainee profile."
                             interactive_payload = [
                                 {
                                     "type": "flow",
@@ -155,6 +159,119 @@ class SDI:
                                 }
                             ]
                             user_state_instance.update({"status":"ONGOING"})
+                    elif payload == "company":
+                        exist_company = db.query(Company).filter(
+                            or_(
+                                Company.mobile_no == recipient_number,
+                                Company.mobile_no == recipient_number[-10:],
+                                Company.mobile_no == f"91{recipient_number[-10:]}"
+                            )
+                        ).first()
+                        if exist_company:
+                            message_type = "interactive"
+                            message_body = "Please fill in the job posting details."
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": "abcd_1234_en",
+                                    "flow_id": "2182567079188693",
+                                    "flow_button": "Post a Job",
+                                    "flow_payload": "navigate"
+                                }
+                            ]
+                            user_state_instance.update({"status": "ONGOING"})
+                        else:
+                            message_type = "interactive"
+                            message_body = "Please register your company."
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": "abcd_1234_en",
+                                    "flow_id": "1349295737222034",
+                                    "flow_button": "Register",
+                                    "flow_payload": "navigate"
+                                }
+                            ]
+                            user_state_instance.update({"status": "ONGOING"})
+                    elif payload in ["sdi", "training_partner", "alumni"]:
+                        message_body = f"Thank you for choosing {payload.replace('_', ' ').title()}. This service is under construction. Please try again later."
+                        message_type = "text"
+                        user_state_instance.update({"status": "COMPLETE"})
+                    elif isinstance(message, dict):
+                        if "industry_sector" in message:
+                            next_id = (db.query(func.max(Company.id)).scalar() or 0) + 1
+                            company = Company(
+                                id=next_id,
+                                company_name=message.get("name"),
+                                sector=message.get("industry_sector"),
+                                city=message.get("city"),
+                                state=message.get("state"),
+                                tier=message.get("hub_tier"),
+                                skills=message.get("skills_required"),
+                                website=message.get("website"),
+                                hr_contact=message.get("hr_contact"),
+                                notes=message.get("notes"),
+                                mobile_no=message.get("mobile_no"),
+                                gstin=message.get("gstin")
+                            )
+                            db.add(company)
+                            message_body = "Thank you! Your company has been registered successfully. You can now post jobs."
+                            message_type = "text"
+                            user_state_instance.update({"status": "COMPLETE"})
+                        elif "job_type" in message:
+                            comp = db.query(Company).filter(
+                                or_(
+                                    Company.mobile_no == recipient_number,
+                                    Company.mobile_no == recipient_number[-10:],
+                                    Company.mobile_no == f"91{recipient_number[-10:]}"
+                                )
+                            ).first()
+                            if comp:
+                                joining_date_val = None
+                                if message.get("joining_date"):
+                                    try:
+                                        joining_date_val = datetime.strptime(message["joining_date"], "%Y-%m-%d").date()
+                                    except:
+                                        pass
+                                job = Jobs(
+                                    id=uuid.uuid4(),
+                                    company_id=comp.id,
+                                    job_type=message.get("job_type"),
+                                    job_specialization=message.get("job_specialization"),
+                                    job_description=message.get("job_description"),
+                                    location=message.get("location"),
+                                    custom_location=message.get("custom_location"),
+                                    salary_min=int(message.get("salary_min")) if message.get("salary_min") else 0,
+                                    salary_max=int(message.get("salary_max")) if message.get("salary_max") else 0,
+                                    salary=message.get("salary"),
+                                    experience=message.get("experience"),
+                                    qualification=message.get("qualification"),
+                                    age=message.get("age"),
+                                    joining_date_option=message.get("joining_date_option", "specific_date"),
+                                    joining_date=joining_date_val,
+                                    headcount=int(message.get("headcount")) if message.get("headcount") else 1,
+                                    gender_preference=message.get("gender_preference"),
+                                    additional_notes=message.get("additional_notes"),
+                                    sdi_introduction_letter=message.get("sdi_introduction_letter"),
+                                    shortlisted_profile=message.get("shortlisted_profile")
+                                )
+                                db.add(job)
+                                message_body = "Thank you! Your job posting has been successfully registered."
+                            else:
+                                message_body = "Error: Registered company not found. Please register first."
+                            message_type = "text"
+                            user_state_instance.update({"status": "COMPLETE"})
+                        else:
+                            message_body = "Thank you! Your details have been submitted successfully."
+                            message_type = "text"
+                            user_state_instance.update({"status": "COMPLETE"})
+                    else:
+                        message_body = """
+📌 Please select any service from the menu above to continue 🌍✨
+
+> If you wish to end the current session, please type 'ABORT'
+"""
+                        message_type = "text"
             else:
                 
                 if isinstance(message,str) and payload is None:
@@ -198,6 +315,7 @@ Welcome to portal
                         "status":"START"
                     }))
 
+            db.commit()
             res = send_message(
                 message_type,
                 message_body,
@@ -215,10 +333,10 @@ Welcome to portal
             return
 
         except:
+            db.rollback()
             traceback.print_exc()
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return ()
 
         finally:
-            db.commit()
             db.close()

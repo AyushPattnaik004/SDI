@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Environment files
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# SSL Certificates & keys
+*.key
+*.crt
+*.csr
+*.pem
+
+# Zip archives / backups
+*.zip
+*.tar.gz
+*.tgz
+
+# Logs
+*.log

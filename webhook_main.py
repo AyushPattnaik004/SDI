@@ -4,8 +4,8 @@ from typing import List
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
-from webhook_server.api import api_router
-from api import api_routerr
+from webhook_server.api import api_router as webhook_api_router
+from api import api_router
 
 app = FastAPI()
 
@@ -22,8 +22,8 @@ app.add_middleware(
 )
 
 
+app.include_router(webhook_api_router)
 app.include_router(api_router)
-app.include_router(api_routerr)
 
 
 

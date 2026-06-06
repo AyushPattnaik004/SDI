@@ -15,5 +15,5 @@ args = {
 
 
 
-_postgres_engine = create_engine('postgresql+psycopg2://', connect_args=args, pool_size=50)
+_postgres_engine = create_engine('postgresql+psycopg2://', connect_args=args, pool_size=50, pool_pre_ping=True)
 SDI_DB = sessionmaker(bind=_postgres_engine)
