@@ -236,11 +236,11 @@ class SDI:
                         user_state_instance.update({"status": "COMPLETE"})
                     elif isinstance(message, dict):
                         if "industry_sector" in message:
-                            next_id = (db.query(func.max(Company.id)).scalar() or 0) + 1
                             company = Company(
-                                id=next_id,
+                                id=uuid.uuid4(),
                                 company_name=message.get("name"),
                                 sector=message.get("industry_sector"),
+                                osector=message.get("osector"),
                                 city=message.get("city"),
                                 state=message.get("state"),
                                 tier=message.get("hub_tier"),
@@ -249,12 +249,30 @@ class SDI:
                                 hr_contact=message.get("hr_contact"),
                                 notes=message.get("notes"),
                                 mobile_no=message.get("mobile_no"),
-                                gstin=message.get("gstin")
+                                gstno=message.get("gstno")
                             )
                             db.add(company)
-                            message_body = "Thank you! Your company has been registered successfully. You can now post jobs."
-                            message_type = "text"
-                            user_state_instance.update({"status": "COMPLETE"})
+                            db.flush()  # persist company before sending messages
+                            # Send thank-you text immediately
+                            send_message(
+                                "text",
+                                "Thank you! Your company has been registered successfully. You can now post jobs.",
+                                None, None, None, None,
+                                recipient_number, "MESSAGE", language, sender_number
+                            )
+                            # Then immediately send the job posting flow
+                            message_type = "interactive"
+                            message_body = "Please fill in the job posting details."
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": "abcd_1234_en",
+                                    "flow_id": "2182567079188693",
+                                    "flow_button": "Post a Job",
+                                    "flow_payload": "navigate"
+                                }
+                            ]
+                            user_state_instance.update({"status": "ONGOING"})
                         elif "job_type" in message:
                             comp = db.query(Company).filter(
                                 or_(
@@ -272,7 +290,6 @@ class SDI:
                                         pass
                                 job = Jobs(
                                     id=uuid.uuid4(),
-                                    company_id=comp.id,
                                     job_type=message.get("job_type"),
                                     job_specialization=message.get("job_specialization"),
                                     job_description=message.get("job_description"),
@@ -280,7 +297,6 @@ class SDI:
                                     custom_location=message.get("custom_location"),
                                     salary_min=int(message.get("salary_min")) if message.get("salary_min") else 0,
                                     salary_max=int(message.get("salary_max")) if message.get("salary_max") else 0,
-                                    salary=message.get("salary"),
                                     experience=message.get("experience"),
                                     qualification=message.get("qualification"),
                                     age=message.get("age"),

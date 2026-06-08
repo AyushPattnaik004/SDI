@@ -22,9 +22,6 @@ class Jobs(Base):
     id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    company_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("companies.id"), nullable=False
-    )
 
     job_type: Mapped[VARCHAR] = mapped_column(VARCHAR(100), nullable=False)
     job_specialization: Mapped[VARCHAR] = mapped_column(VARCHAR(150), nullable=False)
