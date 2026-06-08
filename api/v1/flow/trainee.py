@@ -4,6 +4,9 @@ import traceback
 
 from utils.fb_utils import decrypt_request, encrypt_response
 from core.keys import PHONE_NUMBER_PRIVATE_KEY
+from models.profile import profile
+from core.db import SDI_DB
+db = SDI_DB()
 trainee_router= APIRouter()
 
 Navigation=[
@@ -17,9 +20,10 @@ Navigation=[
             "title":"Update Your Profile"
         },
         "on-click-action":{
-            "name":"navigate",
+            "name":"data_exchange",
             "next":{"name":"update_screen","type":"screen"},
             "payload":{
+                    "trigger":"show_detail"
             },
         }
     },
@@ -65,7 +69,7 @@ async def flow1(body: dict = Body()):
         encrypted_flow_data_b64, encrypted_aes_key_b64, initial_vector_b64, PHONE_NUMBER_PRIVATE_KEY)
     print(decrypted_data)
 
-
+    
     if decrypted_data["action"]=="ping":
             response={
                 "data":{
@@ -97,6 +101,7 @@ async def flow1(body: dict = Body()):
                     }
             }
     elif decrypted_data["data"]["trigger"] == "verify_otp":
+ 
           if decrypted_data["data"]["otp"] == "":
                 response = {
                       "screen":"otp_screen",
@@ -105,6 +110,7 @@ async def flow1(body: dict = Body()):
                       }
                 }
           elif decrypted_data["data"]["otp"] == "123456":
+                
                 response = {
                       "screen":"Welcome_screen",
                       "data":{
@@ -117,7 +123,26 @@ async def flow1(body: dict = Body()):
                       "data":{
                             "error_message":"Enter the Valid Otp" 
                       }
-                }    
+                }
+    elif decrypted_data["data"]["trigger"]=="show_detail":
+           flow_token = decrypted_data['flow_token']
+           data=db.query(profile).filter(profile.number==flow_token).first()
+           response={
+                  "screen":"update_screen",
+                  "data":{
+                            "navigation_list": Navigation,
+                            "user_name_init":data.name,
+                            "number_init":data.number,
+                            "email_init":data.email,
+                            "gender_init":data.gender,
+                            "user_age_init":str(data.age),
+                            "course_init":data.course,
+                            "Qualification_init":data.qualification,
+                            "branch_init":data.branch,
+                            "12th_init":data.twelveth_p,
+                            "10th_init":data.tenth_p
+                      }
+           }                
     elif decrypted_data["data"]["trigger"]=="upload_doc":
            response={
                   "screen":"upload_screen",

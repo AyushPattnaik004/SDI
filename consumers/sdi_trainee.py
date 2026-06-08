@@ -122,23 +122,55 @@ class SDI:
 😊 You can start a new session anytime and continue availing our services seamlessly.                        
 """            
                     message_type = "text"
+                elif isinstance(message, dict):
+                    print("FLOW RESPONSE RECEIVED")
+                    print(message)
+                    user_name = message.get("user_name","")
+                    number = message.get("number","")
+                    email = message.get("email","")
+                    gender = message.get("gender","")
+                    user_age = message.get("user_age","")
+                    course = message.get("course","")
+                    Govt = message.get("Govt",[])
+                    Qualification = message.get("Qualification","")
+                    branch = message.get("branch","")
+                    twelve = message.get("12th","")
+                    tenth = message.get("10th","")
+
+                    trainee = profile(
+                        id=str(uuid.uuid4()),
+                        name=user_name,
+                        number=recipient_number,  # WhatsApp number
+                        email=email,
+                        gender=gender,
+                        age=int(user_age) if user_age else None,
+                        course=course,
+                        is_sponsored=bool(Govt),
+                        qualification=Qualification,
+                        branch=branch,
+                        twelveth_p=twelve,
+                        tenth_p=tenth
+                    )
+
+                    db.add(trainee)
+                    db.commit()
                 else:
                     if payload == "trainee":
                         #Checks in the profile database
                         exist = db.query(profile).filter(profile.number==recipient_number).first()#If present
                         if exist:
                             message_type = "interactive"
-                            message_body = "Please complete your trainee profile."
+                            message_body = "📋 Update, upload, or share feedback to keep your profile current."
                             interactive_payload = [
                                 {
                                     "type": "flow",
-                                    "flow_token": "abcd_1234_en",
+                                    "flow_token": recipient_number,
                                     "flow_id": "2083093795942774",
                                     "flow_button": "Open Form",
                                     "flow_payload": {
                                         "screen": "otp_screen",
                                         "data": {
-                                            "otp_verified":False
+                                            "otp_verified":False,
                                         }
                                     }
                                 }
@@ -159,6 +191,11 @@ class SDI:
                                 }
                             ]
                             user_state_instance.update({"status":"ONGOING"})
+                            # response_json = message["interactive"]["nfm_reply"]["response_json"]
+
+                            # form_data = json.loads(response_json)
+                            # print("🙏🙏🙏🙏🙏",form_data)
+                    
                     elif payload == "company":
                         exist_company = db.query(Company).filter(
                             or_(
