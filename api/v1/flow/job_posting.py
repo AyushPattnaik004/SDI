@@ -4,6 +4,9 @@ from fastapi import APIRouter, Body
 from fastapi.responses import PlainTextResponse
 from utils.fb_utils import decrypt_request, encrypt_response
 from core.keys import PHONE_NUMBER_PRIVATE_KEY
+import uuid
+from core.db import SDI_DB
+from models.jobs_data import Jobs
 
 job_posting_router = APIRouter()
 
@@ -59,23 +62,88 @@ async def post_job(body: dict = Body()):
             trigger_type = data.get("trigger")
 
             if trigger_type == "jobs_selected":
-                response = {
-                    "screen": "JOB_POSTING_FORM",
-                    "data": {
-                        "job_types": data.get("job_types", []),
-                        "locations": data.get("locations", []),
-                        "joining_date_options": data.get("joining_date_options", []),
-                        "gender_preferences": data.get("gender_preferences", []),
-                        "message": "success",
-                    },
-                }
+                if "jobs" in data:
+                    selected_job_id = data.get("jobs")
+                    db = SDI_DB()
+                    try:
+                        jobs = db.query(Jobs).all()
+                        jobss_list = [
+                            {
+                                "id": str(j.id),
+                                "title": f"{j.job_specialization} - {j.location}"
+                            }
+                            for j in jobs
+                        ]
+                        try:
+                            job_uuid = uuid.UUID(selected_job_id)
+                        except ValueError:
+                            job_uuid = None
+                        
+                        selected_job = db.query(Jobs).filter(Jobs.id == job_uuid).first() if job_uuid else None
+                        if selected_job:
+                            details = (
+                                f"**Job Specialization**: {selected_job.job_specialization}\n"
+                                f"**Job Description**: {selected_job.job_description}\n"
+                                f"**Location**: {selected_job.location}\n"
+                                f"**Salary Range**: Rs. {selected_job.salary_min} - Rs. {selected_job.salary_max}\n"
+                                f"**Experience**: {selected_job.experience or 'N/A'}\n"
+                                f"**Qualification**: {selected_job.qualification or 'N/A'}\n"
+                                f"**Joining Date**: {selected_job.joining_date or 'N/A'}\n"
+                                f"**Headcount**: {selected_job.headcount or 1}\n"
+                                f"**Gender Preference**: {selected_job.gender_preference or 'N/A'}\n"
+                                f"**Additional Notes**: {selected_job.additional_notes or 'N/A'}"
+                            )
+                        else:
+                            details = "Selected job details could not be found."
+                    finally:
+                        db.close()
+                    
+                    response = {
+                        "screen": "INTRODUCTION_LETTER",
+                        "data": {
+                            "jobss": jobss_list,
+                            "text1": details,
+                            "visible_1": True
+                        }
+                    }
+                else:
+                    response = {
+                        "screen": "JOB_POSTING_FORM",
+                        "data": {
+                            "job_types": data.get("job_types", []),
+                            "locations": data.get("locations", []),
+                            "joining_date_options": data.get("joining_date_options", []),
+                            "gender_preferences": data.get("gender_preferences", []),
+                            "message": "success",
+                        },
+                    }
 
             elif trigger_type == "user_Selected":
                 response = {
                     "screen": "USER_PROFILE",
                     "data": {"message": "User profile screen"},
                 }
-
+            elif trigger_type =="introduction_selected":
+                db = SDI_DB()
+                try:
+                    jobs = db.query(Jobs).all()
+                    jobss_list = [
+                        {
+                            "id": str(job.id),
+                            "title": f"{job.job_specialization} - {job.location}"
+                        }
+                        for job in jobs
+                    ]
+                finally:
+                    db.close()
+                response={
+                    "screen":"INTRODUCTION_LETTER",
+                    "data": {
+                        "jobss": jobss_list,
+                        "text1": "",
+                        "visible_1": False
+                    }
+                }
             elif trigger_type == "job_posting_completed":
                 job_data = {
                     "job_type": data.get("job_type"),
