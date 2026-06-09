@@ -188,8 +188,20 @@ class SDI:
                                 }
                             ]
                             user_state_instance.update({"status": "ONGOING"})
-
-                    elif payload in ["sdi", "training_partner", "alumni"]:
+                    elif payload == "training_partner":
+                        message_type ="interactive"
+                        message_body="Please register your company"
+                        interactive_payload=[
+                            {
+                                "type":"flow",
+                                "flow_token": "abcd_1234_en",
+                                "flow_id": "1577107137170718",
+                                "flow_button": "Register",
+                                "flow_payload": "navigate"
+                            }
+                        ]
+                        user_state_instance.update({"status":"ONGOING"})
+                    elif payload in ["sdi", "alumni"]:
                         message_body = f"Thank you for choosing {payload.replace('_', ' ').title()}. This service is under construction. Please try again later."
                         message_type = "text"
                         user_state_instance.update({"status": "COMPLETE"})
@@ -271,6 +283,29 @@ class SDI:
                             message_type = "text"
                             message_body = "Your details have been successfully submitted."
                             user_state_instance.update({"status": "COMPLETE"})
+                        
+                        elif message.get("submit")=="add_training":
+                            send_message(
+                                "text",
+                                "Thank you! Your compnay has been registered successfully. You can view student details, company details.",
+                                None, None, None, None,
+                                recipient_number, "MESSAGE", language, sender_number
+                            )
+                            message_type ="interactive"
+                            message_body ="🎓 View student details, 🏢 explore company information,"
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": recipient_number,
+                                    "flow_id": "1310351787917274",
+                                    "flow_button": "Open Form",
+                                    "flow_payload": {
+                                        "screen": "otp_screen",
+                                        "data": {"otp_verified": False}
+                                    }
+                                }
+                            ]
+                            user_state_instance.update({"status": "ONGOING"})
 
                         elif "industry_sector" in message:
                             company = Company(
