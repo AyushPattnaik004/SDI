@@ -24,7 +24,6 @@ class SDI:
     def __init__(self, queue: str = "sdi", prefetch_count: int = 1) -> None:
 
         self.connection = BlockingConnection(ConnectionParameters(host="localhost"))
-        # self.connection = BlockingConnection(ConnectionParameters("localhost"))
         self.queue_name = queue
         self.channel = self.connection.channel()
         self.prefetch_count = prefetch_count
@@ -37,6 +36,7 @@ class SDI:
         )
 
         self.channel.start_consuming()
+
     def callback(
         self,
         ch: Channel,
@@ -57,8 +57,8 @@ class SDI:
             sender_number = chat["entry"][0]["changes"][0]["value"]["metadata"][
                 "display_phone_number"
             ]
-            message_type = "text"  # if the message will be normal(values expected text,document,image,video, audio)
-            message_body = ""  # the actual message that will be sent to usera
+            message_type = "text"
+            message_body = ""
             button_params = None
             interactive_payload = None
             body_params = None
@@ -72,7 +72,6 @@ class SDI:
             if chat_is["type"] == "text":
                 message = chat_is["text"]["body"]
             elif chat_is["type"] == "audio":
-                # message = handle_audio(chat_is['audio']['id'])
                 message = chat_is["audio"]["id"]
                 audio = True
             elif chat_is["type"].lower() == "document":
@@ -80,7 +79,6 @@ class SDI:
             elif chat_is["type"].lower() == "image":
                 message = "image uploaded"
             elif chat_is["type"].lower() == "location":
-                # message = chat_is['location']
                 message = "location"
                 payload = "location"
             elif chat_is["type"].lower() == "button":
@@ -101,63 +99,31 @@ class SDI:
                         )
                         else chat_is["interactive"]["nfm_reply"]["response_json"]
                     )
-
             else:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
-                return  
+                return
 
             user_state_instance = (
                 db.query(flow)
                 .filter(flow.number == recipient_number)
                 .filter(flow.status.in_(["START", "ONGOING"]))
-            )  # this is the main table that maintain state step and everything
-            user_state_data = user_state_instance.first()  
-            
+            )
+            user_state_data = user_state_instance.first()
+
             if user_state_data:
-                if isinstance(message,str) and "abort" in message.lower():
-                    user_state_instance.update({"status":"ABORTED"})
-                    message_body ="""
-✨ Your session has been completed successfully!
-
-😊 You can start a new session anytime and continue availing our services seamlessly.                        
-"""            
-                    message_type = "text"
-                elif isinstance(message, dict):
-                    print("FLOW RESPONSE RECEIVED")
-                    print(message)
-                    user_name = message.get("user_name","")
-                    number = message.get("number","")
-                    email = message.get("email","")
-                    gender = message.get("gender","")
-                    user_age = message.get("user_age","")
-                    course = message.get("course","")
-                    Govt = message.get("Govt",[])
-                    Qualification = message.get("Qualification","")
-                    branch = message.get("branch","")
-                    twelve = message.get("12th","")
-                    tenth = message.get("10th","")
-
-                    trainee = profile(
-                        id=str(uuid.uuid4()),
-                        name=user_name,
-                        number=recipient_number,  # WhatsApp number
-                        email=email,
-                        gender=gender,
-                        age=int(user_age) if user_age else None,
-                        course=course,
-                        is_sponsored=bool(Govt),
-                        qualification=Qualification,
-                        branch=branch,
-                        twelveth_p=twelve,
-                        tenth_p=tenth
+                # ── ABORT ────────────────────────────────────────────────────
+                if isinstance(message, str) and "abort" in message.lower():
+                    user_state_instance.update({"status": "ABORTED"})
+                    message_body = (
+                        "✨ Your session has been completed successfully!\n\n"
+                        "😊 You can start a new session anytime and continue availing our services seamlessly."
                     )
+                    message_type = "text"
 
-                    db.add(trainee)
-                    db.commit()
-                else:
+                # ── START state ──────────────────────────────────────────────
+                elif user_state_data.status == "START":
                     if payload == "trainee":
-                        #Checks in the profile database
-                        exist = db.query(profile).filter(profile.number==recipient_number).first()#If present
+                        exist = db.query(profile).filter(profile.number == recipient_number).first()
                         if exist:
                             message_type = "interactive"
                             message_body = "📋 Update, upload, or share feedback to keep your profile current."
@@ -169,33 +135,25 @@ class SDI:
                                     "flow_button": "Open Form",
                                     "flow_payload": {
                                         "screen": "otp_screen",
-                                        "data": {
-                                            "otp_verified":False,
-                                        }
+                                        "data": {"otp_verified": False}
                                     }
                                 }
                             ]
-                            user_state_instance.update({"status":"COMPLETE"})
-                    # if trainee is chosen
-                    # query from profile table
+                            user_state_instance.update({"status": "ONGOING"})
                         else:
                             message_type = "interactive"
-                            message_body = "Please fill your trainee profile."
+                            message_body = "Please create your profile."
                             interactive_payload = [
                                 {
                                     "type": "flow",
                                     "flow_token": "abcd_1234_en",
                                     "flow_id": "1643051456924315",
                                     "flow_button": "Open Form",
-                                    "flow_payload":"navigate"
+                                    "flow_payload": "navigate"
                                 }
                             ]
-                            user_state_instance.update({"status":"ONGOING"})
-                            # response_json = message["interactive"]["nfm_reply"]["response_json"]
+                            user_state_instance.update({"status": "ONGOING"})
 
-                            # form_data = json.loads(response_json)
-                            # print("🙏🙏🙏🙏🙏",form_data)
-                    
                     elif payload == "company":
                         exist_company = db.query(Company).filter(
                             or_(
@@ -230,12 +188,91 @@ class SDI:
                                 }
                             ]
                             user_state_instance.update({"status": "ONGOING"})
+
                     elif payload in ["sdi", "training_partner", "alumni"]:
                         message_body = f"Thank you for choosing {payload.replace('_', ' ').title()}. This service is under construction. Please try again later."
                         message_type = "text"
                         user_state_instance.update({"status": "COMPLETE"})
-                    elif isinstance(message, dict):
-                        if "industry_sector" in message:
+
+                    
+
+                    else:
+                        # ── FIX: plain text / unknown payload in START state ──
+
+                        message_body = (
+                            "📌 Please select any service from the menu above to continue 🌍✨\n\n"
+                            "> If you wish to end the current session, please type 'ABORT'"
+                        )
+                        message_type = "text"
+
+                # ── ONGOING state (flow responses arrive here) ────────────────
+                else:
+                    # ── FIX: catch-all for ONGOING state with no matching branch ──
+                    if isinstance(message, dict):
+                        if message["submit"]== "add_trainee":
+                            trainee = profile(
+                                id=str(uuid.uuid4()),
+                                name=message.get("user_name", ""),
+                                number=recipient_number,
+                                email=message.get("email", ""),
+                                gender=message.get("gender", ""),
+                                age=int(message["user_age"]) if message.get("user_age") else None,
+                                course=message.get("course", ""),
+                                is_sponsored=bool(message.get("Govt", [])),
+                                qualification=message.get("Qualification", ""),
+                                branch=message.get("branch", ""),
+                                twelveth_p=message.get("12th", ""),
+                                tenth_p=message.get("10th", "")
+                            )
+                            db.add(trainee)
+                            db.commit()
+
+                            send_message(
+                                "text",
+                                "Thank you! Your profile has been created successfully. You can now update profile, upload pay slips, give feedback.",
+                                None, None, None, None,
+                                recipient_number, "MESSAGE", language, sender_number
+                            )
+
+                            message_type = "interactive"
+                            message_body = "📋 Update, upload, or share feedback to keep your profile current."
+                            interactive_payload = [
+                                {
+                                    "type": "flow",
+                                    "flow_token": recipient_number,
+                                    "flow_id": "2083093795942774",
+                                    "flow_button": "Open Form",
+                                    "flow_payload": {
+                                        "screen": "otp_screen",
+                                        "data": {"otp_verified": False}
+                                    }
+                                }
+                            ]
+                            user_state_instance.update({"status": "ONGOING"})
+
+                        elif message.get("submit") == "update":
+
+                            trainee = db.query(profile).filter(
+                                profile.number == recipient_number
+                            ).first()
+
+                            if trainee:
+                                trainee.name = message.get("user_name", trainee.name)
+                                trainee.email = message.get("email", trainee.email)
+                                trainee.gender = message.get("gender", trainee.gender)
+                                trainee.age = int(message["user_age"]) if message.get("user_age") else trainee.age
+                                trainee.course = message.get("course", trainee.course)
+                                trainee.is_sponsored = bool(message.get("Govt", trainee.is_sponsored))
+                                trainee.qualification = message.get("Qualification", trainee.qualification)
+                                trainee.branch = message.get("branch", trainee.branch)
+                                trainee.twelveth_p = message.get("12th", trainee.twelveth_p)
+                                trainee.tenth_p = message.get("10th", trainee.tenth_p)
+                                db.commit()
+                            message_type = "text"
+                            message_body = "Your details have been successfully submitted."
+                            user_state_instance.update({"status": "COMPLETE"})
+
+                        elif "industry_sector" in message:
                             company = Company(
                                 id=uuid.uuid4(),
                                 company_name=message.get("name"),
@@ -252,15 +289,15 @@ class SDI:
                                 gstno=message.get("gstno")
                             )
                             db.add(company)
-                            db.flush()  # persist company before sending messages
-                            # Send thank-you text immediately
+                            db.flush()
+
                             send_message(
                                 "text",
                                 "Thank you! Your company has been registered successfully. You can now post jobs.",
                                 None, None, None, None,
                                 recipient_number, "MESSAGE", language, sender_number
                             )
-                            # Then immediately send the job posting flow
+
                             message_type = "interactive"
                             message_body = "Please fill in the job posting details."
                             interactive_payload = [
@@ -273,6 +310,7 @@ class SDI:
                                 }
                             ]
                             user_state_instance.update({"status": "ONGOING"})
+
                         elif "job_type" in message:
                             comp = db.query(Company).filter(
                                 or_(
@@ -286,7 +324,7 @@ class SDI:
                                 if message.get("joining_date"):
                                     try:
                                         joining_date_val = datetime.strptime(message["joining_date"], "%Y-%m-%d").date()
-                                    except:
+                                    except Exception:
                                         pass
                                 job = Jobs(
                                     id=uuid.uuid4(),
@@ -314,61 +352,45 @@ class SDI:
                                 message_body = "Error: Registered company not found. Please register first."
                             message_type = "text"
                             user_state_instance.update({"status": "COMPLETE"})
+
                         else:
                             message_body = "Thank you! Your details have been submitted successfully."
                             message_type = "text"
                             user_state_instance.update({"status": "COMPLETE"})
-                    else:
-                        message_body = """
-📌 Please select any service from the menu above to continue 🌍✨
+                    
+                   
 
-> If you wish to end the current session, please type 'ABORT'
-"""
-                        message_type = "text"
             else:
-                
-                if isinstance(message,str) and payload is None:
-                    message_body ="""
-Welcome to portal
-"""
+                # ── No active session — show welcome menu ────────────────────
+                if isinstance(message, str) and payload is None:
+                    message_body = "Welcome to portal"
                     message_type = "interactive"
-                    message_header ="Choose service"                   
+                    message_header = "Choose service"
                     interactive_payload = [
                         {
-                            "type":"list",
-                            "header":"Choose",
-                            "options":[
-                            {
-                            "id": "trainee",
-                            "title": "Trainee"
-                            },
-                            {
-                            "id": "sdi",
-                            "title": "SDI"
-                            },
-                            {
-                            "id": "company",
-                            "title": "Company"
-                            },
-                            {
-                            "id": "training_partner",
-                            "title": "Training Partner"
-                            },
-                            {
-                            "id": "alumni",
-                            "title": "Alumni"
-                            }
+                            "type": "list",
+                            "header": "Choose",
+                            "options": [
+                                {"id": "trainee",          "title": "Trainee"},
+                                {"id": "sdi",              "title": "SDI"},
+                                {"id": "company",          "title": "Company"},
+                                {"id": "training_partner", "title": "Training Partner"},
+                                {"id": "alumni",           "title": "Alumni"},
                             ]
                         }
                     ]
-
                     db.add(flow(**{
-                        "id":ULID().hex,
-                        "number":recipient_number,
-                        "status":"START"
+                        "id": ULID().hex,
+                        "number": recipient_number,
+                        "status": "START"
                     }))
 
             db.commit()
+
+            # ── Guard: never send an empty body ─────────────────────────────
+            if message_type == "text" and not message_body.strip():
+                message_body = "📌 Please select a service from the menu to continue."
+
             res = send_message(
                 message_type,
                 message_body,
@@ -385,11 +407,12 @@ Welcome to portal
             print("here sent")
             return
 
-        except:
+        except Exception:
             db.rollback()
             traceback.print_exc()
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            return ()
+            return
 
         finally:
+            db.commit()
             db.close()
